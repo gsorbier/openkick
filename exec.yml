@@ -1,0 +1,932 @@
+# -*- mode: yaml; coding: us-ascii -*-
+
+global:
+  class: ExecBase
+  module: EXEC
+  impl_preamble: |
+    #include <exec/types.hpp>
+    #include <exec/debugger.hpp>
+    #include <exec/execbase.hpp>
+    #include <exec/library.hpp>
+    #include <hw/amiga.hpp>
+    class exec::ExecBase::Vectors {
+    #include <gen/exec.vdef.inc>
+    };
+    using namespace exec;
+
+  impl_postamble: |
+
+  impl_namespace: 'exec::ExecBase::Vectors::'
+
+Open:
+  offset: -6
+  in: void
+  out: ExecBase *{out=d0}
+  code: return execbase->open();
+
+Close:
+  offset: -12
+  in: void
+  out: void
+  code: execbase->close();
+
+Expunge:
+  # FIXME: signature is unclear
+  offset: -18
+  in: void
+  out: int {out=d0}
+  code: return 0;
+
+Reserved:
+  # FIXME: not actually in use, 1.2 exec returns zero
+  offset: -24
+  in: void
+  out: int {out=d0}
+  code: return 0;
+
+Supervisor:
+  offset: -30
+  in: void *{function=a5}
+  # doesn't return anything as such, but registers are unclobbered
+  out: void
+  code: external
+
+ExitIntr:
+  # aka "Private1"
+  offset: -36
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+Schedule:
+  # aka "Private2"
+  offset: -42
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+Reschedule:
+  # aka "Private3"
+  offset: -48
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+Switch:
+  # aka "Private4"
+  offset: -54
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+Dispatch:
+  # aka "Private5"
+  offset: -60
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+Exception:
+  # aka "Private6"
+  offset: -66
+  # FIXME: not really void
+  in: void
+  out: void
+  code: external
+
+InitCode:
+  offset: -72
+  in:
+    - Resident::Flags {start_class=d0}
+    - uint32_t {version_=d1}
+  out: void
+  code: execbase->res_modules->initialise(start_class, version_);
+
+InitStruct:
+  offset: -78
+  in:
+    - PackedStruct *{packedstruct=a1}
+    - char *{memory=a2}
+    - size_t {size=d0}
+  out: void
+  static: 1
+  code: packedstruct->unpack(memory, size);
+
+MakeLibrary:
+  offset: -84
+  in:
+    - PackedFunctions *{functions=a0}
+    - class PackedStruct *{packedstruct=a1}
+    # FIXME: callback type
+    - Library *(*{init=a2})()
+    - size_t {data_size=d0}
+    # FIXME: type
+    - char *{seg_list=d1}
+  out: Library *{library=d0}
+  static: 1
+  code: return Library::make_library(functions, packedstruct, init, data_size, seg_list);
+
+MakeFunctions:
+  offset: -90
+  in:
+    - Library *{library=a0}
+    - PackedFunctions *{functions=a1}
+    - const PackedFunctions *{reference=a2}
+  out: size_t {table_size=d0}
+  static: 1
+  code: return functions->unpack(library, reference);
+
+FindResident:
+   offset: -96
+   in: const char *{name_=a1}
+   out: const Resident *{resident=d0}
+   code: return execbase->res_modules->find_name(name_);
+
+InitResident:
+  offset: -102
+  in:
+    - const Resident *{resident=a1}
+    - void *{seg_list=d1}
+  out: Library *{library=a0}
+  static: 1
+  code: return resident->initialise(seg_list);
+
+Alert:
+  offset: -108
+  in: uint32_t {alert=d7}
+  out: void
+
+Debug:
+  offset: -114
+  in: uint32_t {flags_=d0}
+  out: void
+
+Disable:
+  offset: -120
+  in: void
+  out: void
+  code: execbase->disable();
+
+Enable:
+  offset: -126
+  in: void
+  out: void
+  code: execbase->enable();
+
+Forbid:
+  offset: -132
+  in: void
+  out: void
+  code: execbase->forbid();
+
+Permit:
+  offset: -138
+  in: void
+  out: void
+  code: external
+
+SetSR:
+  offset: -144
+  in:
+    - uint32_t {new_sr=d0}
+    - uint32_t {mask=d1}
+  out: uint32_t {old_sr=d0}
+  code: external
+
+SuperState:
+  offset: -150
+  in: void
+  out: void *{sp=d0}
+  code: external
+
+UserState:
+  offset: -156
+  in: void *{sp=d0}
+  out: void
+  code: external
+
+SetIntVector:
+  offset: -162
+  in:
+    - uint32_t {int_number=d0}
+    - Interrupt *{interrupt=a1}
+  out: Interrupt *{old_interrupt=d0}
+
+AddIntServer:
+  offset: -168
+  in:
+    - uint32_t {intNumber=d0}
+    - Interrupt *{interrupt=a1}
+  out: void
+
+RemIntServer:
+  offset: -174
+  in:
+    - uint32_t {intnum=d0}
+    - Interrupt *{interrupt=a1}
+  out: void
+
+Cause:
+  offset: -180
+  in: Interrupt *{interrupt=a1}
+  out: void
+
+Allocate:
+  offset: -186
+  in:
+    - Heap *{heap=a0}
+    - size_t {size=d0}
+  out: char *{out=d0}
+  static: 1
+  code: return heap->allocate(size);
+
+Deallocate:
+  offset: -192
+  in:
+    - Heap *{heap=a0}
+    - char *{address=a1}
+    - size_t {size=d0}
+  out: void
+  static: 1
+  code: heap->deallocate(address, size);
+
+AllocMem:
+  offset: -198
+  in:
+    - size_t {size=d0}
+    - uint32_t {requirements=d1}
+  out: char *{out=d0}
+  code: |
+    execbase->forbid();
+    char *ret = execbase->heap_list.allocate(size, Heap::Attributes(requirements), Heap::Options(requirements>>16));
+    execbase->Permit();
+    return ret;
+
+AllocAbs:
+  offset: -204
+  in:
+    - size_t {size=d0}
+    - char *{location=a1}
+  out: char *{out=d0}
+  code: |
+    execbase->forbid();
+    char *ret = execbase->heap_list.allocate_at(location, size);
+    execbase->Permit();
+    return ret;
+
+FreeMem:
+  offset: -210
+  in:
+    - char *{address=a1}
+    - size_t {size=d0}
+  out: void
+  code: |
+    execbase->forbid();
+    execbase->heap_list.deallocate(address, size);
+    execbase->Permit();
+
+AvailMem:
+  offset: -216
+  in: uint32_t {requirements=d1}
+  out: size_t {out=d0}
+  code: |
+    execbase->forbid();
+    size_t ret = execbase->heap_list.available(Heap::Attributes(requirements), Heap::Options(requirements>>16));
+    execbase->Permit();
+    return ret;
+
+AllocEntry:
+  offset: -222
+  in: MemEntry *{mementry=a0}
+  out: MemEntry *{entry=d0}
+  code: |
+    execbase->forbid();
+    MemEntryResponse response = execbase->heap_list.allocate_multiple(mementry);
+    execbase->Permit();
+    if(response.failed) return reinterpret_cast<MemEntry *>(response.failed | 1<<31);
+    return response.mementry;
+
+FreeEntry:
+  offset: -228
+  in: MemEntry *{entry=a0}
+  out: void
+  code: |
+    execbase->forbid();
+    execbase->heap_list.deallocate_multiple(entry);
+    execbase->Permit();
+
+Insert:
+  offset: -234
+  in:
+    - MinList *{list=a0}
+    - MinNode *{node=a1}
+    - MinNode *{listnode=a2}
+  out: void
+  static: 1
+  code: |
+    listnode ? node->insert_after(listnode) : list->unshift(node);
+
+AddHead:
+  offset: -240
+  in:
+    - MinList *{list=a0}
+    - MinNode *{node=a1}
+  out: void
+  static: 1
+  code: list->unshift(node);
+
+AddTail:
+  offset: -246
+  in:
+    - MinList *{list=a0}
+    - MinNode *{node=a1}
+  out: void
+  static: 1
+  code: list->push(node);
+
+Remove:
+  offset: -252
+  in: MinNode *{node=a1}
+  out: void
+  static: 1
+  code: node->remove();
+
+RemHead:
+  offset: -258
+  in: MinList *{list=a0}
+  out: MinNode *{out=d0}
+  static: 1
+  code: return list->shift();
+
+RemTail:
+  offset: -264
+  in: MinList *{list=a0}
+  out: MinNode *{out=d0}
+  static: 1
+  code: return list->pop();
+
+Enqueue:
+  offset: -270
+  in:
+    - List *{list=a0}
+    - Node *{node=a1}
+  out: void
+  static: 1
+  code: list->enqueue(node);
+
+FindName:
+  offset: -276
+  in:
+    - List *{list=a0}
+    - const char *{name_=a1}
+  out: Node *{out=d0}
+  static: 1
+  code: return list->find_name(name_);
+
+AddTask:
+  offset: -282
+  in:
+    - Task *{task=a1}
+    - void *{initial_pc=a2}
+    - void *{final_pc=a3}
+  out:
+    # from V36, returns "the address of the new task".
+    void *{out=d0}
+
+RemTask:
+  offset: -288
+  in: Task *{task=a1}
+  out: void
+
+FindTask:
+  offset: -294
+  in: const char *{name_=a1}
+  out: Task *{task=d0}
+
+SetTaskPri:
+  offset: -300
+  in:
+    - Task *{task=a1}
+    - uint8_t {priority_=d0}
+  out: uint8_t {old_priority=d0}
+
+SetSignal:
+  offset: -306
+  in:
+    - uint32_t {new_signals=d0}
+    - uint32_t {mask=d1}
+  out: uint32_t {old_signals=d0}
+
+SetExcept:
+  offset: -312
+  in:
+    - uint32_t {new_signals=d0}
+    - uint32_t {mask=d1}
+  out: uint32_t {old_signals=d0}
+
+Wait:
+  offset: -318
+  in: uint32_t {signal_set=d0}
+  out: uint32_t {signals=d0}
+
+Signal:
+  offset: -324
+  in:
+    - Task *{task=a1}
+    - uint32_t {signals=d0}
+  out: void
+
+AllocSignal:
+  offset: -330
+  in: int8_t {signal=d0}
+  out: int8_t {out=d0}
+
+FreeSignal:
+  offset: -336
+  in: int8_t {signal_num=d0}
+  out: void
+
+AllocTrap:
+  offset: -342
+  in: int32_t {trap=d0}
+  out: int32_t {out=d0}
+
+FreeTrap:
+  offset: -348
+  in: uint32_t {trap_num=d0}
+  out: void
+
+AddPort:
+  offset: -354
+  in: Port *{port=a1}
+  out: void
+
+RemPort:
+  offset: -360
+  in: Port *{port=a1}
+  out: void
+
+PutMsg:
+  offset: -366
+  in:
+    - Port *{port=a0}
+    - Message *{message=a1}
+  out: void
+
+GetMsg:
+  offset: -372
+  in: Port *{port=a0}
+  out: Message *{message=d0}
+
+ReplyMsg:
+  offset: -378
+  in: Message *{message=a1}
+  out: void
+
+WaitPort:
+  offset: -384
+  in: Port *{port=a0}
+  out: Message *{message=d0}
+
+FindPort:
+  offset: -390
+  in: const char *{name_=a1}
+  out: Port *{port=d0}
+
+AddLibrary:
+  offset: -396
+  in: Library *{library=a1}
+  out: void
+  # code: |
+  #   execbase->library_list.add_library(library);
+  #   // FIXME
+
+RemLibrary:
+  offset: -402
+  in: Library *{library=a1}
+  out: void
+
+OldOpenLibrary:
+  offset: -408
+  in: const char *{name_=a1}
+  out: Library *{library=d0}
+  code: return execbase->OpenLibrary(name_, 0);
+
+CloseLibrary:
+  offset: -414
+  in: Library *{library=a1}
+  out: void
+
+SetFunction:
+  offset: -420
+  in:
+    - Library *{library=a1}
+    - int16_t {offset=a0}
+    - address_t {new_function=d0}
+  out: address_t {old_function=d0}
+  code: |
+    execbase->forbid();
+    library->set_function_before();
+    address_t old = library->set_function(offset, new_function);
+    library->set_function_after();
+    execbase->Permit();
+    return old;
+
+SumLibrary:
+  offset: -426
+  in: Library *{library=a1}
+  out: void
+  code: |
+    execbase->forbid();
+    library->sum_library();
+    execbase->Permit();
+
+AddDevice:
+  offset: -432
+  in: Device *{device=a1}
+  out: void
+
+RemDevice:
+  offset: -438
+  in: Device *{device=a1}
+  out: void
+
+OpenDevice:
+  offset: -444
+  in:
+    - const char *{name_=a0}
+    - uint32_t {unit=d0}
+    - IORequest *{iorequest=a1}
+    - uint32_t {flags_=d1}
+  out: uint8_t {error=d0}
+
+CloseDevice:
+  offset: -450
+  in: IORequest *{iorequest=a1}
+  out: void
+
+DoIO:
+  offset: -456
+  in: IORequest *{iorequest=a1}
+  out: int8_t {error=d0}
+
+SendIO:
+  offset: -462
+  in: IORequest *{iorequest=a1}
+  out: void
+
+CheckIO:
+  offset: -468
+  in: IORequest *{iorequest=a1}
+  out: IORequest *{out=d0}
+
+WaitIO:
+  offset: -474
+  in: IORequest *{iorequest=a1}
+  out: int8_t {error=d0}
+
+AbortIO:
+  offset: -480
+  in: IORequest *{iorequest=a1}
+  out: void
+
+AddResource:
+  offset: -486
+  in: Resource *{resource=a1}
+  out: void
+
+RemResource:
+  offset: -492
+  in: Resource *{resource=a1}
+  out: void
+
+OpenResource:
+  offset: -498
+  in: const char *{name_=a1}
+  out: Resource *{resource=d0}
+
+RawIOInit:
+  #aka "Private7"
+  offset: -504
+  in: void
+  out: void
+  static: 1
+  code: Debugger::init();
+
+RawMayGetChar:
+  # aka "Private8"
+  offset: -510
+  in: void
+  out: int32_t {character=d0}
+  static: 1
+  code: return Debugger::try_getc();
+
+RawPutChar:
+  # aka "Private9"
+  offset: -516
+  in: int8_t {character=d0}
+  out: void
+  code: Debugger::putc(character);
+  # AmigaOS exec then does a RawMayGetChar to check for an XOFF, then drop into debugger
+
+RawDoFmt:
+  offset: -522
+  in:
+    - const char *{format=a0}
+    - const char *{data=a1}
+    - void (*{putc_proc=a2})(char)
+    - void *{putc_data=a3}
+  out: const char *{next_data=d0}
+  code: |
+    Formatter::Raw formatter(putc_proc, putc_data);
+    return formatter.format(format, data);
+
+GetCC:
+  offset: -528
+  in: void
+  out: uint32_t {conditions=d0}
+  code: external
+
+TypeOfMem:
+  offset: -534
+  in: char *{address=a1}
+  out: uint32_t {attributes=d0}
+  code:
+    execbase->forbid();
+    uint32_t type = execbase->heap_list.type(address);
+    execbase->Permit();
+    return type;
+
+# Note that while Procure() and Vacate() are present in V32 ROMs, this gives
+# the signature for the V39 versions.
+Procure:
+  offset: -540
+  in:
+    - SignalSemaphore *{semaphore=a0}
+    - SemaphoreMessage *{bid_message=a1}
+  out: void
+
+Vacate:
+  offset: -546
+  in:
+    - SignalSemaphore *{semaphore=a0}
+    - SemaphoreMessage *{bid_message=a1}
+  out: void
+
+OpenLibrary:
+  offset: -552
+  in:
+    - const char *{name_=a1}
+    - uint32_t {version_=d0}
+  out: Library *{library=d0}
+
+### Functions from exec V33 (Kickstart 1.2) or greater
+
+InitSemaphore:
+  offset: -558
+  in: SignalSemaphore *{signalsemaphore=a0}
+  out: void
+
+ObtainSemaphore:
+  offset: -564
+  in: SignalSemaphore *{signalsemaphore=a0}
+  out: void
+
+ReleaseSemaphore:
+  offset: -570
+  in: SignalSemaphore *{signalsemaphore=a0}
+  out: void
+
+AttemptSemaphore:
+  offset: -576
+  # really returns a bool
+  in: SignalSemaphore *{semaphore=a0}
+  out: uint32_t {out=d0}
+
+ObtainSemaphoreList:
+  offset: -582
+  in: ListOf<SignalSemaphore> *{list=a0}
+  out: void
+
+ReleaseSemaphoreList:
+  offset: -588
+  in: ListOf<SignalSemaphore> *{list=a0}
+  out: void
+
+FindSemaphore:
+  offset: -594
+  in: const char *{name_=a1}
+  out: SignalSemaphore *{signalsemaphore=d0}
+
+AddSemaphore:
+  offset: -600
+  in: SignalSemaphore *{signalsemaphore=a1}
+  out: void
+
+RemSemaphore:
+  offset: -606
+  in: SignalSemaphore *{signalsemaphore=a1}
+  out: void
+
+SumKickData:
+  offset: -612
+  in: void
+  out: uint32_t {checksum=d0}
+
+AddMemList:
+  offset: -618
+  in:
+    - uint32_t {size=d0}
+    - Heap::Attributes {attributes=d1}
+    - int32_t {priority_=d2}
+    - char *{base=a0}
+    - const char *{name_=a1}
+  out: void
+  code: execbase->heap_list.add(size, Heap::Attributes(attributes), priority_, static_cast<char *>(base), name_);
+
+CopyMem:
+  offset: -624
+  in:
+    - const char *{source=a0}
+    - char *{dest=a1}
+    - size_t {size=d0}
+  out: void
+
+CopyMemQuick:
+  offset: -630
+  in:
+    - const char *{source=a0}
+    - char *{dest=a1}
+    - size_t {size=d0}
+  out: void
+
+# # ### Functions from exec V36 (Kickstart 2.0) or greater
+
+# # CacheClearE:
+# #   offsetBROKEN: -642
+# #   in:
+# #     - char *{address=a0}
+# #     - size_t {length=d0}
+# #     - uint32_t {caches=d1}
+# #   out: void
+
+# # CacheClearU:
+# #   offsetBROKEN: -648
+# #   in: void
+# #   out: void
+
+# # CacheControl:
+# #   offsetBROKEN: -654
+# #   in:
+# #     - uint32_t {bits=d0}
+# #     - uint32_t {mask=d1}
+# #   out: uint32_t {oldbits=d0}
+
+# # CreateIORequest:
+# #   offsetBROKEN: -660
+# #   in:
+# #     - Port *{replyport=a0}
+# #     - size_t {size=d0}
+# #   out: IORequest *{iorequest=d0}
+
+# # DeleteIORequest:
+# #   offsetBROKEN: -666
+# #   in: IORequest *{iorequest=a0}
+# #   out: void
+
+# # CreateMsgPort:
+# #   offsetBROKEN: -672
+# #   in: void
+# #   out: Port *{out=d0}
+
+# # DeleteMsgPort:
+# #   offsetBROKEN: -678
+# #   in: Port *{port=a0}
+# #   out: void
+
+# # ObtainSemaphoreShared:
+# #   offsetBROKEN: -684
+# #   in: SignalSemaphore *{semaphore=a0}
+# #   out: void
+
+# # AllocVec:
+# #   offsetBROKEN: -690
+# #   in:
+# #     - uint32_t {size=d0}
+# #     - uint32_t {attributes=d1}
+# #   out: void *{memory=d0}
+
+# # FreeVec:
+# #   offsetBROKEN: -696
+# #   in: void *{block=a1}
+# #   out: void
+
+# ### Functions from exec V39 (Kickstart 3.0) or greater
+
+# # # CreatePool (V39)
+# # # DeletePool (V39)
+# # # AllocPooled (V39)
+# # # FreePooled (V39)
+# # # AttemptSemaphoreShared (V37)
+
+# # ColdReboot: (V36)
+# #   in: void
+# #   out: void
+
+# # # StackSwap (V37)
+
+# # execPrivate10:
+# # execPrivate11:
+# # execPrivate12:
+# # execPrivate13:
+
+# # CachePreDMA (V37)
+# # CachePostDMA (V37)
+
+# # AddMemHandler:
+# #   in: Interrupt *{memhandler=a1}
+# #   out: void
+
+# # RemMemHandler (V39)
+
+# # ObtainQuickVector (V39)
+
+# # execPrivate14:
+# # execPrivate15:
+# # execPrivate16:
+# # execPrivate17:
+# # execPrivate18:
+# # execPrivate19:
+
+# ### Functions from exec V45 or greater
+
+# # NewMinList(minlist)(a0) (V45)
+
+# # execPrivate20:
+# # execPrivate21:
+# # execPrivate22:
+
+# # AVL_AddNode:
+# #   in:
+# #     - AVLNode **{root=a0}
+# #     - AVLNode *{node=a1}
+# #     - void *{cmp=a2}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_RemNodeByAddress:
+# #   in:
+# #     - AVLNode **{root=a0}
+# #     - AVLNode *{node=a1}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_RemNodeByKey:
+# #   in:
+# #     - AVLNode **{root=a0}
+# #     - void *{key=a1}
+# #     - void *{func=a2}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_FindNode:
+# #   in:
+# #     - const AVLNode *{root=a0}
+# #     - void *{key=a1}
+# #     - void *{func=a2}
+# #   out: AVLNode *{out=d0}
+
+# # AVL_FindPrevNodeByAddress:
+# #   in: const AVLNode *{node=a0}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_FindPrevNodeByKey:
+# #   in:
+# #     - const AVLNode *{root=a0}
+# #     - void *{key=a1}
+# #     - void *{func=a2}
+# #   out: AVLNode *{out=d0}
+
+# # AVL_FindNextNodeByAddress:
+# #   in: const AVLNode *{node=a0}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_FindNextNodeByKey:
+# #   in:
+# #     - const AVLNode *{root=a0}
+# #     - void *{key=a1}
+# #     - void *{func=a2}
+# #   out: AVLNode *{out=d0}
+
+# # AVL_FindFirstNode:
+# #   in: const AVLNode *{root=a0}
+# #   out: AVLNode *{result=d0}
+
+# # AVL_FindLastNode:
+# #   in: const AVLNode *{root=a0}
+# #   out: AVLNode *{result=d0}
+
+# # # apparently another ten slots reserved.
+# # # eventually ends at offset -972.

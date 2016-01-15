@@ -1,0 +1,156 @@
+The top-level categories come from "The Amiga 3000+ System Specification" which
+describes a superset of the Amiga memory map.
+
+"Pandora" became AGA, whereas the A3000+ was cost-reduced and turned into the
+A4000.
+
+000000- Standard Chip RAM
+==========
+
+Conventional Amigas have 256kiB-2MiB of Chip RAM. Incomplete address decoding
+can occur, e.g. a machine that nominally has 1MiB of Chip RAM may have an alias
+at 100000. Address decoding gets a bit odd if one takes a 512kiB "trapdoor"
+memory expansion intended for an A500 and inserts it into an A500+, but it
+works fine in that the OS correctly detects 1.5MiB of Chip RAM and no Ranger
+RAM.
+
+UAE supports up to 8MiB of Chip RAM by extending it into the Zorro II area and
+forbidding Zorro II RAM. Unlike the approach taken by Pandora, this also works
+on 24 bit machines.
+
+200000- Zorro II Memory Expansion
+900000- Zorro II I/O Expansion
+==========
+
+The 900000 is probably a typo as 8MiB Zorro II RAM cards normally map to
+200000-9fffff.
+
+On the A600/A1200, "credit card memory" will appear at 600000-9fffff.
+
+b80000- Low I/O Registers
+==========
+
+a00000-a1ffff "Credit Card Attributes" (A1200)
+a20000-a3ffff "Credit Card I/O" (A1200)
+a40000-a5ffff "Credit Card Bits (similar-CDTV)" (A1200)
+a60000-a7ffff "PC I/O" (A1200)
+a80000-b7ffff "System ROM selected" (A1200)
+b80000-beffff Reserved for CDTV.
+bf0000-bfffff CIA Ports and Timers
+
+c00000- "Ranger" RAM
+c80000- RESERVED
+d80000- High I/O Registers
+==========
+
+The Amiga's famous custom chips nominally appear at dff000 upwards, however
+incomplete decoding means they will appear throughout this range unless
+shadowed by other hardware or RAM. This means that RAM may extend upwards from
+c00000 until it starts hiding important hardware. "1.8MB" RAM cards were
+commercially available. Devious RAM tests are necessary to avoid poking
+hardware.
+
+The "Ranger" moniker is Commodore's. Users more commonly called it "Slow RAM"
+because the usual implementation was to have the DRAM chips refreshed by Agnus
+and be bus-contended with Chip RAM accesses.
+
+d80000-d8ffff "SPARE chip select"
+d90000-d9ffff "ARCNET chip select"
+da0000-da3fff IDE drive (A1200)
+da4000-da4fff IDE reserved (A1200)
+da8000-daffff Credit Card and IDE configregisters (A1200)
+db0000-dbffff "Not used (reserved for external IDE)" (A1200)
+dc0000-dcffff real-time clock (if fitted)
+dd0000-ddffff RESERVED for DMA controller
+de0000-deffff A3000 "motherboard resources" (if fitted)
+df0000-dfffff AMIGA Chips
+
+The A3000+ is documented as having a COM20020 chip for RS-485 networking at
+d900xx; it's not ARCNET though. In the ddxxxx range, the A3000+ places its
+WD33C93 SCSI controller appears at dd00[0-4]x (as apparently does a more or
+less compatible chip in the the A3000.) and a DSP3210 coprocessor and SSPB
+hardware at dd005x. The A3000+'s Gary+ appears at de0xxx and de1xxx.
+
+e00000- Low ROM
+==========
+
+This likely never appeared in real hardware.
+
+UAE supports placing a ROM in this space. It is used by e.g. m68k AROS.
+
+e80000- Zorro II I/O & Configuration
+==========
+
+Zorro II cards initially appear at e80000 and are then told to map
+themselves at new addresses based on their reported size. 64kiB cards are
+placed from e90000 onwards. RAM boards are placed from 200000 onwards.
+
+Presumably middling-sized I/O cards are placed in the 1.5MiB space from a00000
+onwards?
+
+f00000- Diagnostic ROM
+f80000- High ROM
+==========
+
+The conventional 512kiB Kickstart ROM appears at f80000. 256kiB ROMs are
+incompletely decoded and appear twice in that range, but have a nominal address
+of fc0000.
+
+Kickstart 1.2 looks for Kickstart-like ROMs at f00000 and will branch there in
+the early startup code. (There's a check to prevent an infinite loop if the ROM
+is incompletely decoded.) This seems to relate to a diagnostic card, which was
+not generally available. Kickstart also adds any RomTags that appear in this
+area (assuming that the diagnostic ROM lets it get that far.) UAE hooks in via
+this diagnostic mechanism.
+
+0100'0000- Pandora Chip RAM
+0200'0000- (unlabelled)
+==========
+
+This likely never appeared in real hardware.
+
+The "Pandora Chip RAM" space was intended to support up to 16MiB of Chip RAM,
+and the A3000+ design supported 8MiB although Alice still only supported 2MiB.
+The documentation notes that Chip RAM above the 2MiB mark would appear at
+0120'0000 onwards, although it's unclear if an alias of the first 2MiB appears
+at 0100'0000. It's rather unlikely for it to *only* be at 0100'0000 because
+there needs to be RAM at address 4.
+
+The space from 03c0'0000 was intended for a 4MiB ROM. The Low/High ROMs would
+be aliased at 03e0'0000 and 03f8'0000 respectively.
+
+0400'0000- RESERVED / Motherboard Fast RAM
+==========
+
+The A4000 supports up to 16MiB of motherboard RAM, which grows downwards from
+07ff'ffff, or 077f'ffff if Kickstart shadowing was enabled with the A3640's
+MapROM hardware. (The A3000 is probably identical.)
+
+Under UAE, the full 64MiB may be enabled.
+
+0800'0000- Coprocessor Slot Expansion
+==========
+
+1000'0000- Zorro III Expansion
+8000'0000- RESERVED
+==========
+
+It seems likely that the upper address limit of 8000'0000 on Zorro III cards is
+due to the reasonable assumption that large boards are memory, and because
+exec.library/AllocEntry uses bit 31 of addresses to indicate failure, this
+effectively limits all system RAM to below the 2GiB mark.
+
+If one configures FS-UAE with 1GiB of ZIII RAM and a ZIII UAEGFX board, the
+former will be placed at 0400'0000 and the latter at 8000'0000, apparently
+without ill effect.
+
+So it seems that I/O boards -- even graphics cards that expose their video RAM
+to the CPU -- can have high-bit-set addresses at least as far as AmigaOS cares.
+There may be a hardware limitation on shipping machines.
+
+ff00'0000- Zorro III Configuration Unit
+ff01'0000- RESERVED
+==========
+
+The reserved space exists because Zorro III cards are permitted to decode just
+A24-A31 for their configuration space.
